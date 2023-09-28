@@ -1,7 +1,9 @@
-use browser::context;
+use std::{cell::RefCell, rc::Rc};
+
+use browser::{context, window};
 use programs::point_program::PointProgram;
 use wasm_bindgen::prelude::*;
-use web_sys::{console, WebGlRenderingContext};
+use web_sys::WebGlRenderingContext as GL;
 
 mod browser;
 mod programs;
@@ -15,6 +17,13 @@ mod shaders;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .unwrap()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
+}
+
 // This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
@@ -26,9 +35,23 @@ pub fn main_js() -> Result<(), JsValue> {
     let gl = context().unwrap();
     let point_program = PointProgram::new(&gl);
     gl.use_program(Some(&point_program.program));
-    gl.clear_color(0., 0., 0., 1.);
-    gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+    let mut angle = 45.0;
+    let animation_loop = Rc::new(RefCell::new(None));
+    let animation_loop_cloned = animation_loop.clone();
+    *animation_loop_cloned.borrow_mut() = Some(Closure::new(move || {
+        angle = angle % 360.;
+        angle += 360. / 20.;
+        let gl = context().unwrap();
+        point_program
+            .assign_position(&gl, [0., 0.5, -0.5, -0.5, 0.5, -0.5], angle)
+            .unwrap();
+        gl.clear_color(0., 0., 0., 1.);
+        gl.clear(GL::COLOR_BUFFER_BIT);
 
-    gl.draw_arrays(WebGlRenderingContext::POINTS, 0, 1);
+        gl.draw_arrays(GL::TRIANGLES, 0, 3);
+        request_animation_frame(animation_loop.borrow().as_ref().unwrap());
+    }));
+    request_animation_frame(animation_loop_cloned.borrow().as_ref().unwrap());
+
     Ok(())
 }

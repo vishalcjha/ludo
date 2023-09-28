@@ -28,11 +28,14 @@ thiserror = "1.0.48"
 # The `wasm-bindgen` crate provides the bare minimum functionality needed
 # to interact with JavaScript.
 wasm-bindgen = "0.2.87"
+js-sys = "0.3.64"
+
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. However, it is slower than the default
 # allocator, so it's not enabled by default.
 wee_alloc = { version = "0.4.2", optional = true }
+nalgebra = "0.32.3"
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.
@@ -46,6 +49,9 @@ features = [
     "WebGlRenderingContext",
     "WebGlShader",
     "WebGlProgram",
+    "WebGlBuffer",
+    "WebGlUniformLocation",
+    "MouseEvent",
 ]
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -59,5 +65,4 @@ console_error_panic_hook = "0.1.7"
 [dev-dependencies]
 wasm-bindgen-test = "0.3.37"
 futures = "0.3.28 "
-js-sys = "0.3.64"
 wasm-bindgen-futures = "0.4.37"
