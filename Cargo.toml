@@ -43,7 +43,9 @@ features = [
     "Window",
     "Document",
     "HtmlCanvasElement",
-    "WebGlRenderingContext"
+    "WebGlRenderingContext",
+    "WebGlShader",
+    "WebGlProgram",
 ]
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

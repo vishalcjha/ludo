@@ -1,7 +1,11 @@
+use browser::context;
+use programs::point_program::PointProgram;
 use wasm_bindgen::prelude::*;
-use web_sys::console;
+use web_sys::{console, WebGlRenderingContext};
 
 mod browser;
+mod programs;
+mod shaders;
 
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
 // allocator.
@@ -19,8 +23,12 @@ pub fn main_js() -> Result<(), JsValue> {
     #[cfg(debug_assertions)]
     console_error_panic_hook::set_once();
 
-    // Your code goes here!
-    console::log_1(&JsValue::from_str("Hello world!"));
+    let gl = context().unwrap();
+    let point_program = PointProgram::new(&gl);
+    gl.use_program(Some(&point_program.program));
+    gl.clear_color(0., 0., 0., 1.);
+    gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
 
+    gl.draw_arrays(WebGlRenderingContext::POINTS, 0, 1);
     Ok(())
 }
