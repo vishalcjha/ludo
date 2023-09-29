@@ -1,6 +1,15 @@
 use anyhow::{anyhow, Result};
+use futures::Future;
 use wasm_bindgen::JsCast;
-use web_sys::{Document, HtmlCanvasElement, WebGlRenderingContext, Window};
+
+use web_sys::{Document, HtmlCanvasElement, HtmlImageElement, WebGlRenderingContext, Window};
+macro_rules! log {
+    ($($t:tt)*) => {
+        web_sys::console::log_1(format!($($t)*).into());
+    }
+}
+
+pub(crate) use log;
 pub fn window() -> Result<Window> {
     web_sys::window().ok_or_else(|| anyhow!("Failed to get window"))
 }
@@ -41,4 +50,16 @@ pub fn context() -> Result<WebGlRenderingContext> {
                 context
             ))
         })
+}
+
+pub fn new_image() -> Result<HtmlImageElement> {
+    HtmlImageElement::new()
+        .map_err(|js_error| anyhow!(format!("Failed to create image element {:#?}", js_error)))
+}
+
+pub fn spawn_local<F>(future: F)
+where
+    F: Future<Output = ()> + 'static,
+{
+    wasm_bindgen_futures::spawn_local(future)
 }

@@ -29,7 +29,8 @@ thiserror = "1.0.48"
 # to interact with JavaScript.
 wasm-bindgen = "0.2.87"
 js-sys = "0.3.64"
-
+futures = "0.3.28"
+wasm-bindgen-futures = "0.4.37"
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. However, it is slower than the default
@@ -52,6 +53,8 @@ features = [
     "WebGlBuffer",
     "WebGlUniformLocation",
     "MouseEvent",
+    "HtmlImageElement",
+    "WebGlTexture",
 ]
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -64,5 +67,3 @@ console_error_panic_hook = "0.1.7"
 # These crates are used for running unit tests.
 [dev-dependencies]
 wasm-bindgen-test = "0.3.37"
-futures = "0.3.28 "
-wasm-bindgen-futures = "0.4.37"
