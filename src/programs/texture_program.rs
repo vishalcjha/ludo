@@ -6,7 +6,7 @@ use crate::shaders::vertex::texture_shader as vertex;
 use crate::{browser, shaders::fragment::texture_shader as fragment};
 use anyhow::{anyhow, Ok, Result};
 
-use super::helper::link_program;
+use super::helper::{attribute_location, link_program};
 use std::convert::TryFrom;
 use web_sys::WebGlRenderingContext as GL;
 
@@ -46,11 +46,11 @@ impl TextureProgram {
         );
         gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &js_memory, GL::STATIC_DRAW);
 
-        let a_position = self.attribute_location(gl, "a_Position")?;
+        let a_position = attribute_location(&self.program, gl, "a_Position")?;
         gl.vertex_attrib_pointer_with_i32(a_position, 2, GL::FLOAT, false, FLOAT_SIZE * 4, 0);
         gl.enable_vertex_attrib_array(a_position);
 
-        let a_tex_coord = self.attribute_location(gl, "a_TexCoord")?;
+        let a_tex_coord = attribute_location(&self.program, gl, "a_TexCoord")?;
         gl.vertex_attrib_pointer_with_i32(
             a_tex_coord,
             2,
@@ -107,21 +107,5 @@ impl TextureProgram {
 
         web_sys::console::log_1(&"Finished texture mapping successfully".into());
         Ok(())
-    }
-
-    fn attribute_location(
-        &self,
-        gl: &WebGlRenderingContext,
-        location_name: impl AsRef<str>,
-    ) -> Result<u32> {
-        u32::try_from(gl.get_attrib_location(&self.program, location_name.as_ref())).map_err(
-            |err| {
-                anyhow!(format!(
-                    "Failed to get attribute for localtion {:?} with error {:#?}",
-                    location_name.as_ref(),
-                    err
-                ))
-            },
-        )
     }
 }

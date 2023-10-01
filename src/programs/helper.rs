@@ -1,5 +1,8 @@
 use anyhow::{anyhow, Result};
-use web_sys::{WebGlProgram, WebGlRenderingContext, WebGlShader};
+use js_sys::{Float32Array, WebAssembly};
+use std::convert::TryFrom;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlUniformLocation};
 pub fn link_program(
     gl: &WebGlRenderingContext,
     vetrex_src: &str,
@@ -27,6 +30,45 @@ pub fn link_program(
         )))
     }
 }
+
+pub fn attribute_location(
+    program: &WebGlProgram,
+    gl: &WebGlRenderingContext,
+    location_name: impl AsRef<str>,
+) -> Result<u32> {
+    u32::try_from(gl.get_attrib_location(&program, location_name.as_ref())).map_err(|err| {
+        anyhow!(format!(
+            "Failed to get attribute for localtion {:?} with error {:#?}",
+            location_name.as_ref(),
+            err
+        ))
+    })
+}
+
+pub fn create_wasam_memory() -> Result<JsValue> {
+    Ok(wasm_bindgen::memory()
+        .dyn_into::<WebAssembly::Memory>()
+        .map_err(|err| anyhow!(format!("Failed to create wasam memory {:#?}", err)))?
+        .buffer())
+}
+
+pub fn create_js_memory(data: &[f32]) -> Result<Float32Array> {
+    let memory = create_wasam_memory()?;
+    let start_location = data.as_ptr() as u32 / 4;
+    let js_memory =
+        Float32Array::new(&memory).subarray(start_location, start_location + data.len() as u32);
+    Ok(js_memory)
+}
+
+pub fn uniform_location(
+    gl: &WebGlRenderingContext,
+    program: &WebGlProgram,
+    uniform_name: impl AsRef<str>,
+) -> Result<WebGlUniformLocation> {
+    gl.get_uniform_location(&program, uniform_name.as_ref())
+        .ok_or_else(|| anyhow!(format!("Failed to get uniform {:?}", uniform_name.as_ref())))
+}
+
 fn compile_shader(gl: &WebGlRenderingContext, src: &str, shader_type: u32) -> Result<WebGlShader> {
     let shader = gl
         .create_shader(shader_type)
