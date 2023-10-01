@@ -2,7 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use browser::{context, spawn_local, window};
 use engine::load_image;
-use programs::{texture_program::TextureProgram, three_triangles::ThreeTriangle};
+use programs::{
+    cube_program::CubeProgram, texture_program::TextureProgram, three_triangles::ThreeTriangle,
+};
 use wasm_bindgen::prelude::*;
 use web_sys::WebGlRenderingContext as GL;
 
@@ -37,8 +39,8 @@ pub fn main_js() -> Result<(), JsValue> {
     spawn_local(async {
         let image_element = load_image("horse_shoe.jpg").await.unwrap();
         let gl = context().unwrap();
-        let triangle_program = ThreeTriangle::new(&gl);
-        gl.use_program(Some(&triangle_program.program));
+        let cube_program = CubeProgram::new(&gl);
+        gl.use_program(Some(&cube_program.program));
         let mut angle = 45.0;
         let animation_loop = Rc::new(RefCell::new(None));
         let animation_loop_cloned = animation_loop.clone();
@@ -49,7 +51,7 @@ pub fn main_js() -> Result<(), JsValue> {
             // point_program
             //     .assign_position(&gl, [0., 0.5, -0.5, -0.5, 0.5, -0.5], angle)
             //     .unwrap();
-            if let Err(err) = triangle_program.run(&gl) {
+            if let Err(err) = cube_program.render(&gl) {
                 web_sys::console::log_1(&format!("Failed with error {:#?}", err).into());
             }
             // Specify the color for clearing <canvas>

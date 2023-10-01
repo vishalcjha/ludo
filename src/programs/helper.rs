@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use js_sys::{Float32Array, WebAssembly};
+use js_sys::{Float32Array, Uint16Array, WebAssembly};
 use std::convert::TryFrom;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{WebGlProgram, WebGlRenderingContext, WebGlShader, WebGlUniformLocation};
@@ -57,6 +57,14 @@ pub fn create_js_memory(data: &[f32]) -> Result<Float32Array> {
     let start_location = data.as_ptr() as u32 / 4;
     let js_memory =
         Float32Array::new(&memory).subarray(start_location, start_location + data.len() as u32);
+    Ok(js_memory)
+}
+
+pub fn create_int_js_memory(data: &[u16]) -> Result<Uint16Array> {
+    let memory = create_wasam_memory()?;
+    let start_location = data.as_ptr() as u32 / 2;
+    let js_memory =
+        Uint16Array::new(&memory).subarray(start_location, start_location + data.len() as u32);
     Ok(js_memory)
 }
 

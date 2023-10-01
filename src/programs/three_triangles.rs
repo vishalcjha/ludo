@@ -43,7 +43,7 @@ impl ThreeTriangle {
             false,
             perspective_matrix.as_slice(),
         );
-        gl.clear(GL::COLOR_BUFFER_BIT);
+        gl.clear(GL::COLOR_BUFFER_BIT | GL::DEPTH_BUFFER_BIT);
         gl.draw_arrays(GL::TRIANGLES, 0, vertex_count as i32);
         Ok(())
     }

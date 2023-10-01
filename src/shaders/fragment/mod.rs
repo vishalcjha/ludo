@@ -1,3 +1,4 @@
+pub mod cube_shader;
 pub mod fpoint_shader;
 pub mod texture_shader;
 pub mod three_triangles;
