@@ -1,3 +1,4 @@
+use js_sys::Float32Array;
 use nalgebra::{Matrix4, Point3, Vector3};
 use web_sys::{WebGlProgram, WebGlRenderingContext as GL};
 
@@ -23,6 +24,15 @@ impl CubeProgram {
         let element_count = self.make_vertex_context(gl)? as i32;
         gl.clear_color(0., 0., 0., 1.);
         gl.enable(GL::DEPTH_TEST);
+
+        let u_light_color = uniform_location(&gl, &self.program, "u_LightColor")?;
+        gl.uniform3fv_with_f32_array(Some(&u_light_color), &[1., 1., 1.]);
+
+        let u_light_direction = uniform_location(&gl, &self.program, "u_LightDirection")?;
+        gl.uniform3fv_with_f32_array(
+            Some(&u_light_direction),
+            Vector3::new(0.5, 3., 4.).normalize().as_slice(),
+        );
 
         let u_mvp_matrix = uniform_location(&gl, &self.program, "u_MvpMatrix")?;
         let prespective_matrix = Matrix4::new_perspective(1., std::f32::consts::PI / 6., 1., 100.);
@@ -75,29 +85,26 @@ impl CubeProgram {
             20, 21, 22, 20, 22, 23,
         ];
 
+        let normals = [
+            0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // v0-v1-v2-v3 front
+            1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, // v0-v3-v4-v5 right
+            0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, // v0-v5-v6-v1 up
+            -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0,
+            0.0, // v1-v6-v7-v2 left
+            0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0,
+            0.0, // v7-v4-v3-v2 down
+            0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0,
+            -1.0, // v4-v7-v6-v5 back
+        ];
+
         let vetex_memory = create_js_memory(&vetext_array)?;
         let color_memory = create_js_memory(&colors)?;
         let indice_memory = create_int_js_memory(&indices)?;
+        let normal_memory = create_js_memory(&normals)?;
 
-        let vertex_buffer = gl
-            .create_buffer()
-            .ok_or_else(|| anyhow!("Failed to create buffer"))?;
-        gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
-        gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &vetex_memory, GL::STATIC_DRAW);
-
-        let a_attribute = attribute_location(&self.program, &gl, "a_Position")?;
-        gl.vertex_attrib_pointer_with_i32(a_attribute, 3, GL::FLOAT, false, 0, 0);
-        gl.enable_vertex_attrib_array(a_attribute);
-
-        let color_buffer = gl
-            .create_buffer()
-            .ok_or_else(|| anyhow!("Failed to create buffer"))?;
-        gl.bind_buffer(GL::ARRAY_BUFFER, Some(&color_buffer));
-        gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &color_memory, GL::STATIC_DRAW);
-
-        let a_color = attribute_location(&self.program, &gl, "a_Color")?;
-        gl.vertex_attrib_pointer_with_i32(a_color, 3, GL::FLOAT, false, 0, 0);
-        gl.enable_vertex_attrib_array(a_color);
+        self.init_vertex(gl, "a_Position", vetex_memory)?;
+        self.init_vertex(gl, "a_Color", color_memory)?;
+        self.init_vertex(gl, "a_Normal", normal_memory)?;
 
         let index_buffer = gl
             .create_buffer()
@@ -110,5 +117,22 @@ impl CubeProgram {
         );
 
         Ok(indices.len() as u32)
+    }
+
+    fn init_vertex(
+        &self,
+        gl: &GL,
+        attribute_name: impl AsRef<str>,
+        data: Float32Array,
+    ) -> Result<()> {
+        let buffer = gl
+            .create_buffer()
+            .ok_or_else(|| anyhow!("Failed to create buffer"))?;
+        gl.bind_buffer(GL::ARRAY_BUFFER, Some(&buffer));
+        gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &data, GL::STATIC_DRAW);
+        let attribute = attribute_location(&self.program, &gl, attribute_name.as_ref())?;
+        gl.vertex_attrib_pointer_with_i32(attribute, 3, GL::FLOAT, false, 0, 0);
+        gl.enable_vertex_attrib_array(attribute);
+        Ok(())
     }
 }
