@@ -27,6 +27,8 @@ impl CubeProgram {
 
         let u_light_color = uniform_location(&gl, &self.program, "u_LightColor")?;
         gl.uniform3fv_with_f32_array(Some(&u_light_color), &[1., 1., 1.]);
+        let u_ambient_light_color = uniform_location(&gl, &self.program, "u_AmbientLight")?;
+        gl.uniform3fv_with_f32_array(Some(&u_ambient_light_color), &[0.2, 0.2, 0.2]);
 
         let u_light_direction = uniform_location(&gl, &self.program, "u_LightDirection")?;
         gl.uniform3fv_with_f32_array(
@@ -42,6 +44,11 @@ impl CubeProgram {
             &Vector3::y(),
         );
         let mvp_matrix = prespective_matrix * view_matrix;
+        // how can we do inverse transpose. First do inverse and then transpose.
+        // mvp_matrix
+        //     .try_inverse()
+        //     .map(|inverse| inverse.transpose())
+        //     .ok_or_else(|| anyhow!("inverse transpose failed"))?;
         gl.uniform_matrix4fv_with_f32_array(Some(&u_mvp_matrix), false, mvp_matrix.as_slice());
 
         gl.clear(GL::COLOR_BUFFER_BIT | GL::DEPTH_BUFFER_BIT);

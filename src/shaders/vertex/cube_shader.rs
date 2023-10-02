@@ -4,6 +4,7 @@ pub const VERTEX_CUBE_SHADER: &str = r#"
     attribute vec4 a_Normal;
     uniform mat4 u_MvpMatrix;
     uniform vec3 u_LightColor;
+    uniform vec3 u_AmbientLight;
     uniform vec3 u_LightDirection;
 
     varying vec4 v_Color;
@@ -16,6 +17,7 @@ pub const VERTEX_CUBE_SHADER: &str = r#"
 
         float nDotL = max(dot(u_LightDirection, normal), 0.0);
         vec3 diffuse = u_LightColor * vec3(a_Color) * nDotL;
-        v_Color = vec4(diffuse, a_Color.a);
+        vec3 ambient = u_AmbientLight * a_Color.rgb;
+        v_Color = vec4(ambient + diffuse, a_Color.a);
     }
 "#;
