@@ -1,12 +1,8 @@
 use std::{cell::RefCell, rc::Rc};
 
-use browser::{context, spawn_local, window};
-use engine::load_image;
-use programs::{
-    cube_program::CubeProgram, texture_program::TextureProgram, three_triangles::ThreeTriangle,
-};
+use browser::{canvas, context, height, spawn_local, window};
+use programs::cube_program::CubeProgram;
 use wasm_bindgen::prelude::*;
-use web_sys::WebGlRenderingContext as GL;
 
 mod browser;
 mod engine;
@@ -35,9 +31,9 @@ pub fn main_js() -> Result<(), JsValue> {
     // It's disabled in release mode so it doesn't bloat up the file size.
     #[cfg(debug_assertions)]
     console_error_panic_hook::set_once();
+    set_canvas_size().unwrap();
 
     spawn_local(async {
-        let image_element = load_image("horse_shoe.jpg").await.unwrap();
         let gl = context().unwrap();
         let cube_program = CubeProgram::new(&gl);
         gl.use_program(Some(&cube_program.program));
@@ -46,17 +42,10 @@ pub fn main_js() -> Result<(), JsValue> {
         let animation_loop_cloned = animation_loop.clone();
         *animation_loop_cloned.borrow_mut() = Some(Closure::new(move || {
             angle = angle % 360.;
-            // angle += 360. / 20.;
             let gl = context().unwrap();
-            // point_program
-            //     .assign_position(&gl, [0., 0.5, -0.5, -0.5, 0.5, -0.5], angle)
-            //     .unwrap();
             if let Err(err) = cube_program.render(&gl) {
                 web_sys::console::log_1(&format!("Failed with error {:#?}", err).into());
             }
-            // Specify the color for clearing <canvas>
-            // gl.clear_color(0., 0., 0., 1.);
-            // gl.clear(GL::COLOR_BUFFER_BIT);
 
             if angle > 90.0 {
                 request_animation_frame(animation_loop.borrow().as_ref().unwrap());
@@ -66,4 +55,14 @@ pub fn main_js() -> Result<(), JsValue> {
     });
 
     Ok(())
+}
+
+fn set_canvas_size() -> anyhow::Result<u32> {
+    let canvas = canvas().unwrap();
+
+    let height = height()?;
+    canvas.set_height(height);
+    canvas.set_width(height);
+
+    Ok(height)
 }

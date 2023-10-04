@@ -1,13 +1,13 @@
+#![allow(dead_code)]
 use js_sys::{Float32Array, WebAssembly};
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlImageElement, WebGlProgram, WebGlRenderingContext};
 
+use crate::shaders::fragment::texture_shader as fragment;
 use crate::shaders::vertex::texture_shader as vertex;
-use crate::{browser, shaders::fragment::texture_shader as fragment};
 use anyhow::{anyhow, Ok, Result};
 
 use super::helper::{attribute_location, link_program};
-use std::convert::TryFrom;
 use web_sys::WebGlRenderingContext as GL;
 
 const FLOAT_SIZE: i32 = std::mem::size_of::<f32>() as i32;

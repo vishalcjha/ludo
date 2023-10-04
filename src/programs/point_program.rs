@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use js_sys::{Float32Array, WebAssembly};
 use nalgebra::Vector3;
 use std::convert::TryFrom;

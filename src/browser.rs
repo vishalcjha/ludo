@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use anyhow::{anyhow, Result};
 use futures::Future;
 use wasm_bindgen::JsCast;
@@ -57,6 +58,16 @@ pub fn new_image() -> Result<HtmlImageElement> {
         .map_err(|js_error| anyhow!(format!("Failed to create image element {:#?}", js_error)))
 }
 
+pub fn height() -> Result<u32> {
+    let window = window()?;
+    let height = window
+        .inner_height()
+        .map_err(|err| anyhow!(format!("Failed to get height with error {:#?}", err)))?;
+    let height = height
+        .as_f64()
+        .ok_or_else(|| anyhow!("Failed to convert height to number"))?;
+    Ok(height as u32)
+}
 pub fn spawn_local<F>(future: F)
 where
     F: Future<Output = ()> + 'static,
