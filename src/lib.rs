@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use browser::{canvas, context, height, spawn_local, window};
-use programs::cube_program::CubeProgram;
+use programs::{cube_program::CubeProgram, ludo_program::LudoProgram};
 use wasm_bindgen::prelude::*;
 
 mod browser;
@@ -35,21 +35,19 @@ pub fn main_js() -> Result<(), JsValue> {
 
     spawn_local(async {
         let gl = context().unwrap();
-        let cube_program = CubeProgram::new(&gl);
-        gl.use_program(Some(&cube_program.program));
+        let ludo_program = LudoProgram::new(&gl);
+        gl.use_program(Some(&ludo_program.program));
         let mut angle = 45.0;
         let animation_loop = Rc::new(RefCell::new(None));
         let animation_loop_cloned = animation_loop.clone();
         *animation_loop_cloned.borrow_mut() = Some(Closure::new(move || {
             angle = angle % 360.;
             let gl = context().unwrap();
-            if let Err(err) = cube_program.render(&gl) {
+            if let Err(err) = ludo_program.render(&gl) {
                 web_sys::console::log_1(&format!("Failed with error {:#?}", err).into());
             }
 
-            if angle > 90.0 {
-                request_animation_frame(animation_loop.borrow().as_ref().unwrap());
-            }
+            request_animation_frame(animation_loop.borrow().as_ref().unwrap());
         }));
         request_animation_frame(animation_loop_cloned.borrow().as_ref().unwrap());
     });
