@@ -96,3 +96,26 @@ fn compile_shader(gl: &WebGlRenderingContext, src: &str, shader_type: u32) -> Re
             .unwrap_or_else(|| "Failed to get failure log".to_owned())))
     }
 }
+
+pub fn init_vertex(
+    gl: &WebGlRenderingContext,
+    program: &WebGlProgram,
+    attribute_name: impl AsRef<str>,
+    data: &[f32],
+) -> Result<()> {
+    let buffer = gl
+        .create_buffer()
+        .ok_or_else(|| anyhow!("Failed to create buffer"))?;
+    gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+    let data = create_js_memory(data)?;
+    gl.buffer_data_with_array_buffer_view(
+        WebGlRenderingContext::ARRAY_BUFFER,
+        &data,
+        WebGlRenderingContext::STATIC_DRAW,
+    );
+    let attribute = attribute_location(program, &gl, attribute_name.as_ref())?;
+    gl.vertex_attrib_pointer_with_i32(attribute, 3, WebGlRenderingContext::FLOAT, false, 0, 0);
+    gl.enable_vertex_attrib_array(attribute);
+    gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, None);
+    Ok(())
+}
