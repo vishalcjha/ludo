@@ -5,150 +5,242 @@ use web_sys::WebGlProgram;
 use web_sys::WebGlRenderingContext as GL;
 
 use super::helper::{create_int_js_memory, init_vertex, link_program, uniform_location};
-use crate::programs::helper::create_js_memory;
 use crate::shaders::fragment::ludo_shader as FS;
 use crate::shaders::vertex::ludo_shader as VS;
 use anyhow::{anyhow, Result};
+use color::Color;
 
-enum Color {
-    Red,
-    Green,
-    Yellow,
-    Blue,
-}
+mod color {
+    use super::Coordinate;
 
-impl Color {
-    fn get_color_tuple(&self) -> [f32; 3] {
-        match self {
-            Color::Red => [1., 0., 0.],
-            Color::Green => [0., 1., 0.],
-            Color::Yellow => [1., 1., 0.],
-            Color::Blue => [0., 0., 1.],
-        }
+    pub enum Color {
+        Red,
+        Green,
+        Yellow,
+        Blue,
     }
 
-    fn horizontal_vert_cell_count(&self) -> [f32; 2] {
-        match self {
-            Color::Red => [8., 7.],
-            Color::Green => [7., 8.],
-            Color::Yellow => [8., 7.],
-            Color::Blue => [7., 8.],
-        }
-    }
-
-    // this return bottom left cornor for a given color.
-    fn begin_x_z_(&self, board_coordinate: &Coordinate) -> (f32, f32) {
-        let width = board_coordinate.width();
-        let depth = board_coordinate.depth();
-        match self {
-            Color::Yellow => (board_coordinate.left, board_coordinate.near),
-            Color::Green => (
-                board_coordinate.right - 6. * width / 15.,
-                board_coordinate.near,
-            ),
-            Color::Red => (
-                board_coordinate.right - 6. * width / 15.,
-                board_coordinate.far + 6. * depth / 15.,
-            ),
-            Color::Blue => (
-                board_coordinate.left,
-                board_coordinate.far + 6. * depth / 15.,
-            ),
-        }
-    }
-
-    // this returns coloured and white part of square in cornor.
-    // For color send factor 1 and for white send factor .5.
-    fn cornor_sq_vetices(&self, board_coordinate: &Coordinate, factor: f32) -> Vec<f32> {
-        let width = board_coordinate.width();
-        let depth = board_coordinate.depth();
-        let top = board_coordinate.top + 0.15;
-
-        let (mut begin_x, mut begin_z) = self.begin_x_z_(board_coordinate);
-        let mut cell_count_multiplier = 6.;
-        let mut iteration_multiplier = 5.; // how far other strip is.
-        if factor != 1. {
-            begin_x += width / 15.;
-            begin_z -= depth / 15.;
-            cell_count_multiplier = 4.;
-            iteration_multiplier = 3.5;
-        }
-
-        let mut outer_vertices = Vec::<f32>::new();
-        let padding_factor = 0.015; // this is to give black line apperance.
-
-        for j in 0..2 {
-            let near_z = begin_z - j as f32 * depth * iteration_multiplier / 15.;
-
-            // horizontal outer corner (count 4)
-            outer_vertices.extend_from_slice(&[
-                (begin_x) + padding_factor,
-                top,
-                (near_z) - padding_factor, // lower left
-                (begin_x + cell_count_multiplier * width / 15.) - padding_factor,
-                top,
-                (near_z) - padding_factor, // lower right
-                (begin_x + cell_count_multiplier * width / 15.) - padding_factor,
-                top,
-                (near_z - depth * factor / 15.) + padding_factor, // upper right
-                (begin_x),
-                top,
-                (near_z - depth * factor / 15.) + padding_factor, // upper left
-            ]);
-
-            // vertical outer corner (count 4)
-            let begin_x = begin_x + j as f32 * width * iteration_multiplier / 15.;
-            outer_vertices.extend_from_slice(&[
-                (begin_x) + padding_factor,
-                top,
-                (begin_z) - padding_factor, // lower left
-                (begin_x + width * factor / 15.) - padding_factor,
-                top,
-                (begin_z) - padding_factor, // lower right
-                (begin_x + width * factor / 15.) - padding_factor,
-                top,
-                (begin_z - cell_count_multiplier * depth / 15.) + padding_factor, // upper right
-                (begin_x) + padding_factor,
-                top,
-                (begin_z - cell_count_multiplier * depth / 15.) + padding_factor, // upper left
-            ]);
-        }
-        outer_vertices
-    }
-
-    fn conor_sq_inner_block(&self, board_coordinate: &Coordinate) -> Vec<f32> {
-        let mut vertices = Vec::<f32>::new();
-        let width = board_coordinate.width();
-        let depth = board_coordinate.depth();
-        let top = board_coordinate.top + 0.15;
-        let (mut begin_x, mut begin_z) = self.begin_x_z_(board_coordinate);
-        begin_x += width * 1.5 / 15.;
-        begin_z -= depth * 1.5 / 15.;
-        let padding_factor = 0.015;
-        for i in 0..2 {
-            let begin_z = begin_z - i as f32 * depth * 1.5 / 15.;
-            for j in 0..2 {
-                let begin_x = begin_x + j as f32 * width * 1.5 / 15.;
-                vertices.extend_from_slice(&[
-                    begin_x + padding_factor,
-                    top,
-                    begin_z - padding_factor, // left bottom
-                    begin_x + width * 1.5 / 15. - padding_factor,
-                    top,
-                    begin_z - padding_factor, // right bottom,
-                    begin_x + width * 1.5 / 15. - padding_factor,
-                    top,
-                    begin_z - depth * 1.5 / 15. + padding_factor, // right up
-                    begin_x + padding_factor,
-                    top,
-                    begin_z - depth * 1.5 / 15. + padding_factor,
-                ]);
+    impl Color {
+        pub fn get_color_tuple(&self) -> [f32; 3] {
+            match self {
+                Color::Red => [1., 0., 0.],
+                Color::Green => [0., 1., 0.],
+                Color::Yellow => [1., 1., 0.],
+                Color::Blue => [0., 0., 1.],
             }
         }
-        vertices
+
+        // this return bottom left cornor for a given color.
+        fn begin_x_z_(&self, board_coordinate: &Coordinate) -> (f32, f32) {
+            let width = board_coordinate.width();
+            let depth = board_coordinate.depth();
+            match self {
+                Color::Yellow => (board_coordinate.left, board_coordinate.near),
+                Color::Green => (
+                    board_coordinate.right - 6. * width / 15.,
+                    board_coordinate.near,
+                ),
+                Color::Red => (
+                    board_coordinate.right - 6. * width / 15.,
+                    board_coordinate.far + 6. * depth / 15.,
+                ),
+                Color::Blue => (
+                    board_coordinate.left,
+                    board_coordinate.far + 6. * depth / 15.,
+                ),
+            }
+        }
+
+        fn play_tile_x_z_(&self, board_coordinate: &Coordinate) -> (f32, f32, u8, u8) {
+            let width = board_coordinate.width();
+            let depth = board_coordinate.depth();
+            match self {
+                Color::Yellow => (
+                    board_coordinate.left + 6. * width / 15.,
+                    board_coordinate.near,
+                    6,
+                    3,
+                ),
+                Color::Green => (
+                    board_coordinate.right - 6. * width / 15.,
+                    board_coordinate.near - 6. * depth / 15.,
+                    3,
+                    6,
+                ),
+                Color::Red => (
+                    board_coordinate.left + 6. * width / 15.,
+                    board_coordinate.far + 6. * depth / 15.,
+                    6,
+                    3,
+                ),
+                Color::Blue => (
+                    board_coordinate.left,
+                    board_coordinate.near - 6. * depth / 15.,
+                    3,
+                    6,
+                ),
+            }
+        }
+
+        pub(super) fn play_tile_has_color(&self) -> [bool; 18] {
+            let mut has_color = [false; 18];
+            match self {
+                Color::Yellow => {
+                    for i in [3, 4, 7, 10, 13, 16] {
+                        has_color[i] = true;
+                    }
+                }
+                Color::Green => {
+                    for i in [4, 6, 7, 8, 9, 10] {
+                        has_color[i] = true;
+                    }
+                }
+                Color::Red => {
+                    for i in [1, 4, 7, 10, 13, 14] {
+                        has_color[i] = true;
+                    }
+                }
+                Color::Blue => {
+                    for i in [7, 8, 9, 10, 11, 13] {
+                        has_color[i] = true;
+                    }
+                }
+            }
+            has_color
+        }
+
+        pub(super) fn play_tile_vertices(&self, board_coordinate: &Coordinate) -> Vec<f32> {
+            let width = board_coordinate.width();
+            let depth = board_coordinate.depth();
+            let top = board_coordinate.top + 0.15;
+            let padding_factor = 0.015;
+
+            let mut vertices = Vec::<f32>::new();
+            let (begin_x, begin_z, row, col) = self.play_tile_x_z_(board_coordinate);
+            let cell_widht = width / 15.;
+            let cell_depth = depth / 15.;
+            for i in 0..row {
+                for j in 0..col {
+                    let begin_x = begin_x + j as f32 * cell_widht;
+                    let begin_z = begin_z - i as f32 * cell_depth;
+
+                    vertices.extend_from_slice(&[
+                        begin_x + padding_factor,
+                        top,
+                        begin_z - padding_factor, // bottom left
+                        begin_x - padding_factor + cell_widht,
+                        top,
+                        begin_z - padding_factor, // bottom right
+                        begin_x - padding_factor + cell_widht,
+                        top,
+                        begin_z - cell_depth + padding_factor, // top right
+                        begin_x + padding_factor,
+                        top,
+                        begin_z - cell_depth + padding_factor,
+                    ])
+                }
+            }
+
+            vertices
+        }
+
+        // this returns coloured and white part of square in cornor.
+        // For color send factor 1 and for white send factor .5.
+        pub(super) fn cornor_sq_vetices(
+            &self,
+            board_coordinate: &Coordinate,
+            factor: f32,
+        ) -> Vec<f32> {
+            let width = board_coordinate.width();
+            let depth = board_coordinate.depth();
+            let top = board_coordinate.top + 0.15;
+
+            let (mut begin_x, mut begin_z) = self.begin_x_z_(board_coordinate);
+            let mut cell_count_multiplier = 6.;
+            let mut iteration_multiplier = 5.; // how far other strip is.
+            if factor != 1. {
+                begin_x += width / 15.;
+                begin_z -= depth / 15.;
+                cell_count_multiplier = 4.;
+                iteration_multiplier = 3.5;
+            }
+
+            let mut outer_vertices = Vec::<f32>::new();
+            let padding_factor = 0.015; // this is to give black line apperance.
+
+            for j in 0..2 {
+                let near_z = begin_z - j as f32 * depth * iteration_multiplier / 15.;
+
+                // horizontal outer corner (count 4)
+                outer_vertices.extend_from_slice(&[
+                    (begin_x) + padding_factor,
+                    top,
+                    (near_z) - padding_factor, // lower left
+                    (begin_x + cell_count_multiplier * width / 15.) - padding_factor,
+                    top,
+                    (near_z) - padding_factor, // lower right
+                    (begin_x + cell_count_multiplier * width / 15.) - padding_factor,
+                    top,
+                    (near_z - depth * factor / 15.) + padding_factor, // upper right
+                    (begin_x),
+                    top,
+                    (near_z - depth * factor / 15.) + padding_factor, // upper left
+                ]);
+
+                // vertical outer corner (count 4)
+                let begin_x = begin_x + j as f32 * width * iteration_multiplier / 15.;
+                outer_vertices.extend_from_slice(&[
+                    (begin_x) + padding_factor,
+                    top,
+                    (begin_z) - padding_factor, // lower left
+                    (begin_x + width * factor / 15.) - padding_factor,
+                    top,
+                    (begin_z) - padding_factor, // lower right
+                    (begin_x + width * factor / 15.) - padding_factor,
+                    top,
+                    (begin_z - cell_count_multiplier * depth / 15.) + padding_factor, // upper right
+                    (begin_x) + padding_factor,
+                    top,
+                    (begin_z - cell_count_multiplier * depth / 15.) + padding_factor, // upper left
+                ]);
+            }
+            outer_vertices
+        }
+
+        pub(super) fn conor_sq_inner_block(&self, board_coordinate: &Coordinate) -> Vec<f32> {
+            let mut vertices = Vec::<f32>::new();
+            let width = board_coordinate.width();
+            let depth = board_coordinate.depth();
+            let top = board_coordinate.top + 0.15;
+            let (mut begin_x, mut begin_z) = self.begin_x_z_(board_coordinate);
+            begin_x += width * 1.5 / 15.;
+            begin_z -= depth * 1.5 / 15.;
+            let padding_factor = 0.015;
+            for i in 0..2 {
+                let begin_z = begin_z - i as f32 * depth * 1.5 / 15.;
+                for j in 0..2 {
+                    let begin_x = begin_x + j as f32 * width * 1.5 / 15.;
+                    vertices.extend_from_slice(&[
+                        begin_x + padding_factor,
+                        top,
+                        begin_z - padding_factor, // left bottom
+                        begin_x + width * 1.5 / 15. - padding_factor,
+                        top,
+                        begin_z - padding_factor, // right bottom,
+                        begin_x + width * 1.5 / 15. - padding_factor,
+                        top,
+                        begin_z - depth * 1.5 / 15. + padding_factor, // right up
+                        begin_x + padding_factor,
+                        top,
+                        begin_z - depth * 1.5 / 15. + padding_factor,
+                    ]);
+                }
+            }
+            vertices
+        }
     }
 }
-struct Coordinate {
+pub(super) struct Coordinate {
     right: f32,
     left: f32,
     near: f32,
@@ -229,36 +321,6 @@ impl LudoProgram {
         Ok(())
     }
 
-    fn get_line_coordinates(&self) -> Vec<f32> {
-        let division_count = 15.;
-        let mut coordinates = Vec::new();
-        let Coordinate {
-            right,
-            left,
-            near,
-            far,
-            top,
-            ..
-        } = self.coorinate;
-        let width = self.coorinate.width();
-        let depth = self.coorinate.depth();
-        for i in 1..15 {
-            coordinates.push(right - i as f32 * width / division_count);
-            coordinates.push(top + 0.01);
-            coordinates.push(near);
-            coordinates.push(right - i as f32 * width / division_count);
-            coordinates.push(top + 0.01);
-            coordinates.push(far);
-
-            coordinates.push(right);
-            coordinates.push(top + 0.01);
-            coordinates.push(near - i as f32 * depth / division_count);
-            coordinates.push(left);
-            coordinates.push(top + 0.01);
-            coordinates.push(far);
-        }
-        coordinates
-    }
     fn get_board_vertices(&self) -> (Vec<f32>, Vec<u16>, Vec<f32>) {
         let division_count = 15.;
         let Coordinate {
@@ -392,7 +454,55 @@ impl LudoProgram {
             );
         }
 
+        for color in [Color::Yellow, Color::Green, Color::Red, Color::Blue] {
+            self.extend_for_color_tile(&mut colors, &mut outer_board, &mut indices, &color);
+        }
+
         (outer_board, indices, colors)
+    }
+
+    fn extend_for_color_tile(
+        &self,
+        colors: &mut Vec<f32>,
+        vertices: &mut Vec<f32>,
+        indices: &mut Vec<u16>,
+        color: &Color,
+    ) {
+        let tile_vertex = color.play_tile_vertices(&self.coorinate);
+        let mut tile_vertex = tile_vertex.chunks(3);
+        let has_color = color.play_tile_has_color();
+        let color_tuple = color.get_color_tuple();
+        let white_tuple = [1., 1., 1.];
+        for i in 0..18 {
+            let one = tile_vertex.next().unwrap();
+            let two = tile_vertex.next().unwrap();
+            let three = tile_vertex.next().unwrap();
+            let four = tile_vertex.next().unwrap();
+
+            let index_begin = vertices.len() as u16 / 3;
+            vertices.extend_from_slice(one);
+            vertices.extend_from_slice(two);
+            vertices.extend_from_slice(three);
+            vertices.extend_from_slice(four);
+
+            let selected_color_tuple = if has_color[i] {
+                color_tuple
+            } else {
+                white_tuple
+            };
+            for _ in 0..4 {
+                colors.extend_from_slice(&selected_color_tuple);
+            }
+
+            indices.extend_from_slice(&[
+                index_begin,
+                index_begin + 1,
+                index_begin + 2,
+                index_begin,
+                index_begin + 2,
+                index_begin + 3,
+            ]);
+        }
     }
 
     fn extend_for_all_color_conor_sq_inner_block(
@@ -428,7 +538,7 @@ impl LudoProgram {
                 index_begin,
                 index_begin + 2,
                 index_begin + 3,
-            ])
+            ]);
         }
     }
 
