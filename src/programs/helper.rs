@@ -116,6 +116,6 @@ pub fn init_vertex(
     let attribute = attribute_location(program, &gl, attribute_name.as_ref())?;
     gl.vertex_attrib_pointer_with_i32(attribute, 3, WebGlRenderingContext::FLOAT, false, 0, 0);
     gl.enable_vertex_attrib_array(attribute);
-    gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, None);
+    // gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, None);
     Ok(())
 }
