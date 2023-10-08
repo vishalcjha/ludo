@@ -68,6 +68,17 @@ pub fn height() -> Result<u32> {
         .ok_or_else(|| anyhow!("Failed to convert height to number"))?;
     Ok(height as u32)
 }
+
+pub fn width() -> Result<u32> {
+    let window = window()?;
+    let height = window
+        .inner_width()
+        .map_err(|err| anyhow!(format!("Failed to get height with error {:#?}", err)))?;
+    let height = height
+        .as_f64()
+        .ok_or_else(|| anyhow!("Failed to convert height to number"))?;
+    Ok(height as u32)
+}
 pub fn spawn_local<F>(future: F)
 where
     F: Future<Output = ()> + 'static,

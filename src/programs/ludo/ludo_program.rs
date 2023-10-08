@@ -28,7 +28,7 @@ impl LudoProgram {
         }
     }
 
-    pub fn render(&self, gl: &GL, left_near_color: Color) -> Result<()> {
+    pub fn render(&self, gl: &GL, left_near_color: Color, angle: f32) -> Result<()> {
         gl.clear_color(0., 0., 0., 1.);
         gl.enable(GL::DEPTH_TEST);
         let (board_vertices, indices, colors) = self.get_board_vertices(&left_near_color);
@@ -44,7 +44,11 @@ impl LudoProgram {
             &Vector3::y(),
         );
         let prespective_matrix = Matrix4::new_perspective(1., std::f32::consts::PI / 4., 1., 100.);
-        let mvp_matrix = prespective_matrix * view_matrix;
+        let rotation = Matrix4::new_rotation_wrt_point(
+            Vector3::y() * std::f32::consts::PI * angle / 180.,
+            Point3::new(0., 0., -20.),
+        );
+        let mvp_matrix = prespective_matrix * view_matrix * rotation;
         gl.uniform_matrix4fv_with_f32_array(Some(&u_mvp_matrix), false, mvp_matrix.as_slice());
 
         gl.clear(GL::COLOR_BUFFER_BIT | GL::DEPTH_BUFFER_BIT);
@@ -125,12 +129,12 @@ impl LudoProgram {
         outer_board.extend_from_slice(&v5);
 
         let mut colors: Vec<f32> = vec![
-            1.0, 0., 0., 1., 0., 0., 1.0, 0., 0., 1.0, 0., 0., // v0-v1-v2-v3 front(red)
+            1.0, 1., 0., 1., 1., 0., 1.0, 1., 0., 1.0, 1., 0., // v0-v1-v2-v3 front(yello)
             0., 1.0, 0., 0., 1.0, 0., 0., 1.0, 0., 0., 1.0, 0., // v0-v3-v4-v5 right(green)
-            0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., // v0-v5-v6-v1 up(white)
-            0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., // v1-v6-v7-v2 left
-            1.0, 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., // v7-v4-v3-v2 down
-            1., 1.0, 0., 1., 1.0, 0., 1., 1.0, 0., 1., 1.0, 0., // v4-v7-v6-v5 back
+            0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., // v0-v5-v6-v1 up(black)
+            0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., // v1-v6-v7-v2 left(blue)
+            0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., // v7-v4-v3-v2 down
+            1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., // v4-v7-v6-v5 back (red)
         ];
 
         let mut indices = vec![
@@ -152,32 +156,26 @@ impl LudoProgram {
         let center_x = left + widht / 2.;
         let center_z = near - depth / 2.;
 
-        let v8 = [inner_sq_right, top + 0.2, inner_sq_near];
-        let v9 = [inner_sq_left, top + 0.2, inner_sq_near];
-        let v10 = [inner_sq_left, top + 0.2, inner_sq_far];
-        let v11 = [inner_sq_right, top + 0.2, inner_sq_far];
+        let v8 = [inner_sq_right, top + 0.15, inner_sq_near];
+        let v9 = [inner_sq_left, top + 0.15, inner_sq_near];
+        let v10 = [inner_sq_left, top + 0.15, inner_sq_far];
+        let v11 = [inner_sq_right, top + 0.15, inner_sq_far];
         let vmid = [center_x, top + 0.15, center_z];
+        // add inner block in anti clock orientation.
         outer_board.extend_from_slice(&v8);
         outer_board.extend_from_slice(&v9);
         outer_board.extend_from_slice(&vmid);
-        outer_board.extend_from_slice(&v8);
-        outer_board.extend_from_slice(&vmid);
-        outer_board.extend_from_slice(&v11);
-        outer_board.extend_from_slice(&v11);
-        outer_board.extend_from_slice(&vmid);
-        outer_board.extend_from_slice(&v10);
         outer_board.extend_from_slice(&v10);
         outer_board.extend_from_slice(&vmid);
         outer_board.extend_from_slice(&v9);
+        outer_board.extend_from_slice(&v11);
+        outer_board.extend_from_slice(&vmid);
+        outer_board.extend_from_slice(&v10);
+        outer_board.extend_from_slice(&v8);
+        outer_board.extend_from_slice(&vmid);
+        outer_board.extend_from_slice(&v11);
 
         indices.extend_from_slice(&[24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
-
-        colors.extend_from_slice(&[
-            1., 1., 0., 1., 1., 0., 1., 1., 0., // yello
-            0., 1., 0., 0., 1., 0., 0., 1., 0., // green
-            1., 0., 0., 1., 0., 0., 1., 0., 0., // red
-            0., 0., 1., 0., 0., 1., 0., 0., 1., // blue
-        ]);
 
         let position_color_map = [
             (Position::LeftNear, left_near_color.clone()),
@@ -191,6 +189,14 @@ impl LudoProgram {
                 left_near_color.neighbor().neighbor().neighbor().clone(),
             ),
         ];
+
+        for position_color in &position_color_map {
+            let color = position_color.1.get_color_tuple();
+            for _ in 0..3 {
+                colors.extend_from_slice(&color);
+            }
+        }
+
         // Now lets make cornor sq first, coloured as well as inner white.
         for position_color in &position_color_map {
             for i in 0..2 {

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use browser::{canvas, context, height, spawn_local, window};
+use browser::{canvas, context, height, spawn_local, width, window};
 use programs::ludo::ludo_program::LudoProgram;
 use wasm_bindgen::prelude::*;
 
@@ -43,13 +43,15 @@ pub fn main_js() -> Result<(), JsValue> {
         *animation_loop_cloned.borrow_mut() = Some(Closure::new(move || {
             angle = angle % 360.;
             let gl = context().unwrap();
-            if let Err(err) = ludo_program.render(&gl, crate::programs::ludo::color::Color::Green) {
+            if let Err(err) =
+                ludo_program.render(&gl, crate::programs::ludo::color::Color::Yellow, angle)
+            {
                 web_sys::console::log_1(&format!("Failed with error {:#?}", err).into());
             }
 
-            if angle > 90.0 {
-                request_animation_frame(animation_loop.borrow().as_ref().unwrap());
-            }
+            angle += 1.;
+
+            request_animation_frame(animation_loop.borrow().as_ref().unwrap());
         }));
         request_animation_frame(animation_loop_cloned.borrow().as_ref().unwrap());
     });
@@ -61,8 +63,10 @@ fn set_canvas_size() -> anyhow::Result<u32> {
     let canvas = canvas().unwrap();
 
     let height = height()?;
-    canvas.set_height(height);
-    canvas.set_width(height);
+    let widht = width()?;
+    let size = widht.min(height);
+    canvas.set_height(size);
+    canvas.set_width(size);
 
-    Ok(height)
+    Ok(size)
 }
