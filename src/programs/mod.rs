@@ -1,6 +1,6 @@
 pub mod cube_program;
 pub(self) mod helper;
-pub mod ludo_program;
+pub(crate) mod ludo;
 pub mod point_program;
 pub mod texture_program;
 pub mod three_triangles;

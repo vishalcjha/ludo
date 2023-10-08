@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use browser::{canvas, context, height, spawn_local, window};
-use programs::{cube_program::CubeProgram, ludo_program::LudoProgram};
+use programs::ludo::ludo_program::LudoProgram;
 use wasm_bindgen::prelude::*;
 
 mod browser;
@@ -43,7 +43,7 @@ pub fn main_js() -> Result<(), JsValue> {
         *animation_loop_cloned.borrow_mut() = Some(Closure::new(move || {
             angle = angle % 360.;
             let gl = context().unwrap();
-            if let Err(err) = ludo_program.render(&gl) {
+            if let Err(err) = ludo_program.render(&gl, crate::programs::ludo::color::Color::Green) {
                 web_sys::console::log_1(&format!("Failed with error {:#?}", err).into());
             }
 

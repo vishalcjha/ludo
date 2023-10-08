@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use js_sys::Float32Array;
 use nalgebra::{Matrix4, Point3, Vector3};
 use web_sys::{WebGlProgram, WebGlRenderingContext as GL};

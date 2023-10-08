@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn get_matric_rotation() {
         let radian_angle = consts::PI * 90. / 180.;
-        let rotation_matrix = nalgebra::Matrix4::new_rotation(Vector3::z() * radian_angle);
+        let rotation_matrix = Matrix4::new_rotation(Vector3::z() * radian_angle);
         let transformed_matrix = rotation_matrix.as_slice();
         let cos_b = radian_angle.cos();
         let sig_b = radian_angle.sin();
