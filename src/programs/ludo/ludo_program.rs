@@ -18,6 +18,11 @@ pub struct LudoProgram {
     coorinate: Coordinate,
 }
 
+pub enum Around {
+    X,
+    Z,
+}
+
 impl LudoProgram {
     pub fn new(gl: &GL) -> Self {
         let program = link_program(gl, VS::LUDO_VERTEX_SHADER, FS::LUDO_FRAGMENT_SHADER)
@@ -379,41 +384,68 @@ impl LudoProgram {
         let x_mid = (right + left) / 2.;
         let y_mid = (top + bottom) / 2.;
         let z_mid = (near + far) / 2.;
-        vertices.extend_from_slice(&[
-            x_mid,
-            y_mid + 0.15,
-            near,
-            x_mid + 0.15,
-            y_mid,
-            near,
-            x_mid - 0.15,
-            y_mid,
-            near,
-        ]);
 
-        vertices.extend_from_slice(&[
+        let mut extend_around = |x: f32, y: f32, z: f32, around: Around| {
+            match around {
+                Around::X => {
+                    vertices.extend_from_slice(&[x, y + 0.25, z, x, y, z + 0.15, x, y, z - 0.15]);
+                }
+                Around::Z => {
+                    vertices.extend_from_slice(&[x, y + 0.15, z, x + 0.15, y, z, x - 0.15, y, z]);
+                }
+            };
+        };
+        extend_around(x_mid, y_mid, near, Around::Z);
+
+        extend_around(
             left,
-            y_mid + 0.25,
+            y_mid,
             near - (dice_coordinate.depth() / 4.),
-            left,
-            y_mid,
-            near - (dice_coordinate.depth() / 4.) + 0.15,
-            left,
-            y_mid,
-            near - (dice_coordinate.depth() / 4.) - 0.15, // end of one dot
-            left,
-            y_mid + 0.25,
-            far + (dice_coordinate.depth() / 4.),
-            left,
-            y_mid,
-            far + (dice_coordinate.depth() / 4.) + 0.15,
-            left,
-            y_mid,
-            far + (dice_coordinate.depth() / 4.) - 0.15,
-        ]);
+            Around::X,
+        );
+        extend_around(left, y_mid, far + (dice_coordinate.depth() / 4.), Around::X);
 
-        colors.extend_from_slice(&[0.; 27]);
-        indices.append(&mut (begin..begin + 9).collect());
+        extend_around(left + dice_coordinate.width() / 4., y_mid, far, Around::X);
+        extend_around(
+            left + 2. * dice_coordinate.width() / 4.,
+            y_mid,
+            far,
+            Around::X,
+        );
+        extend_around(
+            left + 3. * dice_coordinate.width() / 4.,
+            y_mid,
+            far,
+            Around::X,
+        );
+
+        extend_around(
+            right,
+            top - (dice_coordinate.depth() / 4.),
+            near - (dice_coordinate.depth() / 4.),
+            Around::X,
+        );
+        extend_around(
+            right,
+            top - (dice_coordinate.depth() / 4.),
+            far + (dice_coordinate.depth() / 4.),
+            Around::X,
+        );
+        extend_around(
+            right,
+            bottom + (dice_coordinate.depth() / 4.),
+            near - (dice_coordinate.depth() / 4.),
+            Around::X,
+        );
+        extend_around(
+            right,
+            bottom + (dice_coordinate.depth() / 4.),
+            far + (dice_coordinate.depth() / 4.),
+            Around::X,
+        );
+
+        colors.extend_from_slice(&[0.; 10 * 3 * 3]);
+        indices.append(&mut (begin..begin + 10 * 3).collect());
     }
 
     fn extend_for_all_color_conor_sq_inner_block(

@@ -38,4 +38,8 @@ impl Coordinate {
     pub fn depth(&self) -> f32 {
         f32::abs(self.far - self.near)
     }
+
+    pub fn height(&self) -> f32 {
+        f32::abs(self.top - self.bottom)
+    }
 }
