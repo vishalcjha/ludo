@@ -50,7 +50,9 @@ pub fn main_js() -> Result<(), JsValue> {
             }
 
             angle += 0.5;
+            // if angle > 90. {
             request_animation_frame(animation_loop.borrow().as_ref().unwrap());
+            //}
         }));
         request_animation_frame(animation_loop_cloned.borrow().as_ref().unwrap());
     });

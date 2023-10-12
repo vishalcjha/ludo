@@ -9,6 +9,7 @@ use crate::shaders::fragment::ludo_shader as FS;
 use crate::shaders::vertex::ludo_shader as VS;
 use anyhow::{anyhow, Result};
 
+use super::board_configuration::BoardConfiguration;
 use super::color::Color;
 use super::coordinate::Coordinate;
 use super::position::{AntiClockNeighbor, Position};
@@ -20,6 +21,7 @@ pub struct LudoProgram {
 
 pub enum Around {
     X,
+    Y,
     Z,
 }
 
@@ -36,11 +38,17 @@ impl LudoProgram {
     pub fn render(&self, gl: &GL, left_near_color: Color, angle: f32) -> Result<()> {
         gl.clear_color(0., 0., 0., 1.);
         gl.enable(GL::DEPTH_TEST);
-        let (board_vertices, indices, colors) = self.get_board_vertices(&left_near_color);
-        init_vertex(gl, &self.program, "a_Position", &board_vertices)?;
+        let BoardConfiguration {
+            vertices,
+            indices,
+            colors,
+            start_index_dice,
+            end_index_dice,
+        } = self.get_board_vertices(&left_near_color);
+        init_vertex(gl, &self.program, "a_Position", &vertices)?;
         init_vertex(gl, &self.program, "a_Color", &colors)?;
 
-        assert_eq!(board_vertices.len(), colors.len());
+        assert_eq!(vertices.len(), colors.len());
 
         let u_mvp_matrix = uniform_location(&gl, &self.program, "u_MvpMatrix")?;
         let view_matrix = Matrix4::look_at_rh(
@@ -50,7 +58,7 @@ impl LudoProgram {
         );
         let prespective_matrix = Matrix4::new_perspective(1., std::f32::consts::PI / 4., 1., 100.);
         let rotation = Matrix4::new_rotation_wrt_point(
-            Vector3::y() * std::f32::consts::PI * angle / 180.,
+            Vector3::y() * std::f32::consts::PI * 45. / 180.,
             Point3::new(0., 0., -20.),
         );
         let mvp_matrix = prespective_matrix * view_matrix * rotation;
@@ -70,11 +78,25 @@ impl LudoProgram {
             GL::STATIC_DRAW,
         );
 
-        gl.draw_elements_with_i32(GL::TRIANGLES, indices.len() as i32, GL::UNSIGNED_SHORT, 0);
+        gl.draw_elements_with_i32(GL::TRIANGLES, start_index_dice, GL::UNSIGNED_SHORT, 0);
+
+        // rotate dice
+        let rotation = Matrix4::new_rotation_wrt_point(
+            Vector3::y() * std::f32::consts::PI * angle / 180.,
+            Point3::new(0., 0., -20.),
+        );
+        let mvp_matrix = prespective_matrix * view_matrix * rotation;
+        gl.uniform_matrix4fv_with_f32_array(Some(&u_mvp_matrix), false, mvp_matrix.as_slice());
+        gl.draw_elements_with_i32(
+            GL::TRIANGLES,
+            end_index_dice - start_index_dice,
+            GL::UNSIGNED_SHORT,
+            2 * start_index_dice,
+        );
         Ok(())
     }
 
-    fn get_board_vertices(&self, left_near_color: &Color) -> (Vec<f32>, Vec<u16>, Vec<f32>) {
+    fn get_board_vertices(&self, left_near_color: &Color) -> BoardConfiguration {
         let mut outer_board: Vec<f32> = Vec::new();
         self.extend_with_cube_vertices(self.coorinate.clone(), &mut outer_board);
 
@@ -191,8 +213,21 @@ impl LudoProgram {
             );
         }
 
-        self.append_with_dice(&mut colors, &mut outer_board, &mut indices);
-        (outer_board, indices, colors)
+        let mut board_configuraton = BoardConfiguration {
+            vertices: outer_board,
+            colors,
+            start_index_dice: indices.len() as i32,
+            end_index_dice: indices.len() as i32,
+            indices,
+        };
+
+        self.append_with_dice(
+            &mut board_configuraton.colors,
+            &mut board_configuraton.vertices,
+            &mut board_configuraton.indices,
+        );
+        board_configuraton.end_index_dice = board_configuraton.indices.len() as i32;
+        board_configuraton
     }
 
     fn extend_with_cube_vertices(&self, coorinate: Coordinate, vertices: &mut Vec<f32>) {
@@ -388,15 +423,20 @@ impl LudoProgram {
         let mut extend_around = |x: f32, y: f32, z: f32, around: Around| {
             match around {
                 Around::X => {
-                    vertices.extend_from_slice(&[x, y + 0.25, z, x, y, z + 0.15, x, y, z - 0.15]);
+                    vertices.extend_from_slice(&[x, y, z - 0.15, x + 0.15, y, z, x - 0.15, y, z]);
+                }
+                Around::Y => {
+                    vertices.extend_from_slice(&[x, y, z - 0.15, x + -0.15, y, z, x + 0.15, y, z]);
                 }
                 Around::Z => {
                     vertices.extend_from_slice(&[x, y + 0.15, z, x + 0.15, y, z, x - 0.15, y, z]);
                 }
             };
         };
-        extend_around(x_mid, y_mid, near, Around::Z);
+        // do 1
+        extend_around(x_mid, y_mid, near + 0.015, Around::Z);
 
+        // do 2
         extend_around(
             left,
             y_mid,
@@ -405,6 +445,7 @@ impl LudoProgram {
         );
         extend_around(left, y_mid, far + (dice_coordinate.depth() / 4.), Around::X);
 
+        // do 3
         extend_around(left + dice_coordinate.width() / 4., y_mid, far, Around::X);
         extend_around(
             left + 2. * dice_coordinate.width() / 4.,
@@ -419,6 +460,7 @@ impl LudoProgram {
             Around::X,
         );
 
+        // do 4
         extend_around(
             right,
             top - (dice_coordinate.depth() / 4.),
@@ -444,8 +486,78 @@ impl LudoProgram {
             Around::X,
         );
 
-        colors.extend_from_slice(&[0.; 10 * 3 * 3]);
-        indices.append(&mut (begin..begin + 10 * 3).collect());
+        // do six on top
+        extend_around(
+            right - (dice_coordinate.width() / 4.),
+            top + 0.015,
+            near - (dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            right - (dice_coordinate.width() / 4.),
+            top + 0.015,
+            near - (2. * dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            right - (dice_coordinate.width() / 4.),
+            top + 0.015,
+            near - (3. * dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            left + (dice_coordinate.width() / 4.),
+            top + 0.015,
+            near - (dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            left + (dice_coordinate.width() / 4.),
+            top + 0.015,
+            near - (2. * dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            left + (dice_coordinate.width() / 4.),
+            top + 0.015,
+            near - (3. * dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+
+        // do 5
+        extend_around(
+            right - (dice_coordinate.width() / 4.),
+            bottom - 0.015,
+            near - (dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            right - (dice_coordinate.width() / 4.),
+            bottom - 0.015,
+            near - (3. * dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            right - (dice_coordinate.width() / 2.),
+            bottom - 0.015,
+            near - (dice_coordinate.depth() / 2.),
+            Around::Y,
+        );
+        extend_around(
+            left + (dice_coordinate.width() / 4.),
+            bottom - 0.015,
+            near - (dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+        extend_around(
+            left + (dice_coordinate.width() / 4.),
+            bottom - 0.015,
+            near - (3. * dice_coordinate.depth() / 4.),
+            Around::Y,
+        );
+
+        colors.extend_from_slice(&[0.; 21 * 3 * 3]);
+        indices.append(&mut (begin..begin + 21 * 3).collect());
     }
 
     fn extend_for_all_color_conor_sq_inner_block(
