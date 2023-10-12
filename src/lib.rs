@@ -49,9 +49,11 @@ pub fn main_js() -> Result<(), JsValue> {
                 web_sys::console::log_1(&format!("Failed with error {:#?}", err).into());
             }
 
-            angle += 1.;
+            // angle += 1.;
 
-            request_animation_frame(animation_loop.borrow().as_ref().unwrap());
+            if angle > 90. {
+                request_animation_frame(animation_loop.borrow().as_ref().unwrap());
+            }
         }));
         request_animation_frame(animation_loop_cloned.borrow().as_ref().unwrap());
     });

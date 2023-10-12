@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct Coordinate {
     pub right: f32,
     pub left: f32,
@@ -8,7 +9,7 @@ pub struct Coordinate {
 }
 
 impl Coordinate {
-    pub fn new() -> Self {
+    pub fn for_board() -> Self {
         Coordinate {
             right: 10.,
             left: -10.,
@@ -16,6 +17,17 @@ impl Coordinate {
             far: -30.,
             top: 5.,
             bottom: 4.8,
+        }
+    }
+
+    pub fn for_dice() -> Self {
+        Coordinate {
+            right: 1.,
+            left: -1.,
+            near: -12.,
+            far: -14.,
+            top: 7.,
+            bottom: 5.,
         }
     }
 

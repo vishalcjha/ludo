@@ -24,7 +24,7 @@ impl LudoProgram {
             .expect("Failed to compile program");
         LudoProgram {
             program,
-            coorinate: Coordinate::new(),
+            coorinate: Coordinate::for_board(),
         }
     }
 
@@ -70,63 +70,8 @@ impl LudoProgram {
     }
 
     fn get_board_vertices(&self, left_near_color: &Color) -> (Vec<f32>, Vec<u16>, Vec<f32>) {
-        let Coordinate {
-            right,
-            left,
-            near,
-            far,
-            top,
-            bottom,
-        } = self.coorinate;
-
-        let vo = [right, top, near];
-        let v1 = [left, top, near];
-        let v2 = [left, bottom, near];
-        let v3 = [right, bottom, near];
-        let v4 = [right, bottom, far];
-        let v5 = [right, top, far];
-        let v6 = [left, top, far];
-        let v7 = [left, bottom, far];
         let mut outer_board: Vec<f32> = Vec::new();
-
-        // Create a ludo board
-        //    v6----- v5
-        //   /|      /|
-        //  v1------v0|
-        //  | |     | |
-        //  | |v7---|-|v4
-        //  |/      |/
-        //  v2------v3
-        // v0-v1-v2-v3 front
-        outer_board.extend_from_slice(&vo);
-        outer_board.extend_from_slice(&v1);
-        outer_board.extend_from_slice(&v2);
-        outer_board.extend_from_slice(&v3);
-        // v0-v3-v4-v5 right
-        outer_board.extend_from_slice(&vo);
-        outer_board.extend_from_slice(&v3);
-        outer_board.extend_from_slice(&v4);
-        outer_board.extend_from_slice(&v5);
-        // v0-v5-v6-v1 up
-        outer_board.extend_from_slice(&vo);
-        outer_board.extend_from_slice(&v5);
-        outer_board.extend_from_slice(&v6);
-        outer_board.extend_from_slice(&v1);
-        // v1-v6-v7-v2 left
-        outer_board.extend_from_slice(&v1);
-        outer_board.extend_from_slice(&v6);
-        outer_board.extend_from_slice(&v7);
-        outer_board.extend_from_slice(&v2);
-        // v7-v4-v3-v2 down
-        outer_board.extend_from_slice(&v7);
-        outer_board.extend_from_slice(&v4);
-        outer_board.extend_from_slice(&v3);
-        outer_board.extend_from_slice(&v2);
-        // v4-v7-v6-v5 back
-        outer_board.extend_from_slice(&v4);
-        outer_board.extend_from_slice(&v7);
-        outer_board.extend_from_slice(&v6);
-        outer_board.extend_from_slice(&v5);
+        self.extend_with_cube_vertices(self.coorinate.clone(), &mut outer_board);
 
         let mut colors: Vec<f32> = vec![
             1.0, 1., 0., 1., 1., 0., 1.0, 1., 0., 1.0, 1., 0., // v0-v1-v2-v3 front(yello)
@@ -146,6 +91,14 @@ impl LudoProgram {
             20, 21, 22, 20, 22, 23,
         ];
 
+        let Coordinate {
+            right,
+            left,
+            near,
+            far,
+            top,
+            ..
+        } = &self.coorinate;
         let widht = f32::abs(right - left);
         let depth = f32::abs(far - near);
 
@@ -233,9 +186,67 @@ impl LudoProgram {
             );
         }
 
+        self.append_with_dice(&mut colors, &mut outer_board, &mut indices);
         (outer_board, indices, colors)
     }
 
+    fn extend_with_cube_vertices(&self, coorinate: Coordinate, vertices: &mut Vec<f32>) {
+        let Coordinate {
+            right,
+            left,
+            near,
+            far,
+            top,
+            bottom,
+        } = coorinate;
+        let vo = [right, top, near];
+        let v1 = [left, top, near];
+        let v2 = [left, bottom, near];
+        let v3 = [right, bottom, near];
+        let v4 = [right, bottom, far];
+        let v5 = [right, top, far];
+        let v6 = [left, top, far];
+        let v7 = [left, bottom, far];
+
+        // Create a ludo board
+        //    v6----- v5
+        //   /|      /|
+        //  v1------v0|
+        //  | |     | |
+        //  | |v7---|-|v4
+        //  |/      |/
+        //  v2------v3
+        // v0-v1-v2-v3 front
+        vertices.extend_from_slice(&vo);
+        vertices.extend_from_slice(&v1);
+        vertices.extend_from_slice(&v2);
+        vertices.extend_from_slice(&v3);
+        // v0-v3-v4-v5 right
+        vertices.extend_from_slice(&vo);
+        vertices.extend_from_slice(&v3);
+        vertices.extend_from_slice(&v4);
+        vertices.extend_from_slice(&v5);
+        // v0-v5-v6-v1 up
+        vertices.extend_from_slice(&vo);
+        vertices.extend_from_slice(&v5);
+        vertices.extend_from_slice(&v6);
+        vertices.extend_from_slice(&v1);
+        // v1-v6-v7-v2 left
+        vertices.extend_from_slice(&v1);
+        vertices.extend_from_slice(&v6);
+        vertices.extend_from_slice(&v7);
+        vertices.extend_from_slice(&v2);
+        // v7-v4-v3-v2 down
+        vertices.extend_from_slice(&v7);
+        vertices.extend_from_slice(&v4);
+        vertices.extend_from_slice(&v3);
+        vertices.extend_from_slice(&v2);
+        // v4-v7-v6-v5 back
+        vertices.extend_from_slice(&v4);
+        vertices.extend_from_slice(&v7);
+        vertices.extend_from_slice(&v6);
+        vertices.extend_from_slice(&v5);
+    }
     fn extend_for_color_tile(
         &self,
         colors: &mut Vec<f32>,
@@ -279,6 +290,130 @@ impl LudoProgram {
                 index_begin + 3,
             ]);
         }
+    }
+
+    fn append_with_dice(
+        &self,
+        colors: &mut Vec<f32>,
+        vertices: &mut Vec<f32>,
+        indices: &mut Vec<u16>,
+    ) {
+        let mut begin = vertices.len() as u16;
+        self.extend_with_cube_vertices(Coordinate::for_dice(), vertices);
+        let dice_coordinate = Coordinate::for_dice();
+        let Coordinate {
+            right,
+            left,
+            near,
+            far,
+            top,
+            bottom,
+        } = dice_coordinate;
+        assert_eq!(vertices.len() as u16, begin + 3 * 24);
+        // Create a ludo board
+        //    v6----- v5
+        //   /|      /|
+        //  v1------v0|
+        //  | |     | |
+        //  | |v7---|-|v4
+        //  |/      |/
+        //  v2------v3
+        // v0-v1-v2-v3 front
+
+        colors.extend_from_slice(&[
+            0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95,
+            0.95, // v0-v1-v2-v3 front(white)
+            0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98,
+            0.98, // v0-v3-v4-v5 right(white)
+            0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92,
+            0.92, // v0-v5-v6-v1 up(white)
+            0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98,
+            0.98, // v1-v6-v7-v2 left(white)
+            0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92,
+            0.92, // v7-v4-v3-v2 donw (white)
+            0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.95,
+            0.95, // v4-v7-v6-v5 back (white)
+        ]);
+
+        begin = begin / 3;
+        indices.extend_from_slice(&[
+            begin + 0,
+            begin + 1,
+            begin + 2,
+            begin + 0,
+            begin + 2,
+            begin + 3, // front
+            begin + 4,
+            begin + 5,
+            begin + 6,
+            begin + 4,
+            begin + 6,
+            begin + 7, // right
+            begin + 8,
+            begin + 9,
+            begin + 10,
+            begin + 8,
+            begin + 10,
+            begin + 11, // up
+            begin + 12,
+            begin + 13,
+            begin + 14,
+            begin + 12,
+            begin + 14,
+            begin + 15, // left
+            begin + 16,
+            begin + 17,
+            begin + 18,
+            begin + 16,
+            begin + 18,
+            begin + 19, // down
+            begin + 20,
+            begin + 21,
+            begin + 22,
+            begin + 20,
+            begin + 22,
+            begin + 23,
+        ]);
+
+        begin = vertices.len() as u16 / 3;
+        let x_mid = (right + left) / 2.;
+        let y_mid = (top + bottom) / 2.;
+        let z_mid = (near + far) / 2.;
+        vertices.extend_from_slice(&[
+            x_mid,
+            y_mid + 0.15,
+            near,
+            x_mid + 0.15,
+            y_mid,
+            near,
+            x_mid - 0.15,
+            y_mid,
+            near,
+        ]);
+
+        vertices.extend_from_slice(&[
+            left,
+            y_mid + 0.25,
+            near - (dice_coordinate.depth() / 4.),
+            left,
+            y_mid,
+            near - (dice_coordinate.depth() / 4.) + 0.15,
+            left,
+            y_mid,
+            near - (dice_coordinate.depth() / 4.) - 0.15, // end of one dot
+            left,
+            y_mid + 0.25,
+            far + (dice_coordinate.depth() / 4.),
+            left,
+            y_mid,
+            far + (dice_coordinate.depth() / 4.) + 0.15,
+            left,
+            y_mid,
+            far + (dice_coordinate.depth() / 4.) - 0.15,
+        ]);
+
+        colors.extend_from_slice(&[0.; 27]);
+        indices.append(&mut (begin..begin + 9).collect());
     }
 
     fn extend_for_all_color_conor_sq_inner_block(
