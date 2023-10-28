@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use super::position::AntiClockNeighbor;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Color {
     Red,
     Green,

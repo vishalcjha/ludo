@@ -3,7 +3,9 @@ use anyhow::{anyhow, Result};
 use futures::Future;
 use wasm_bindgen::JsCast;
 
-use web_sys::{Document, HtmlCanvasElement, HtmlImageElement, WebGlRenderingContext, Window};
+use web_sys::{
+    Document, HtmlButtonElement, HtmlCanvasElement, HtmlImageElement, WebGlRenderingContext, Window,
+};
 macro_rules! log {
     ($($t:tt)*) => {
         web_sys::console::log_1(format!($($t)*).into());
@@ -34,6 +36,23 @@ pub fn canvas() -> Result<HtmlCanvasElement> {
         })
 }
 
+pub fn button(button_id: impl AsRef<str>) -> Result<HtmlButtonElement> {
+    document()?
+        .get_element_by_id(button_id.as_ref())
+        .ok_or_else(|| {
+            anyhow!(format!(
+                "Failed to get button with id {:?}",
+                button_id.as_ref()
+            ))
+        })?
+        .dyn_into::<HtmlButtonElement>()
+        .map_err(|element| {
+            anyhow!(format!(
+                "Failed to convert {:#?} into HtmlCanvasElement",
+                element
+            ))
+        })
+}
 pub fn context() -> Result<WebGlRenderingContext> {
     canvas()?
         .get_context("webgl")

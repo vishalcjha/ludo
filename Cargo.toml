@@ -37,6 +37,12 @@ wasm-bindgen-futures = "0.4.37"
 # allocator, so it's not enabled by default.
 wee_alloc = { version = "0.4.2", optional = true }
 nalgebra = "0.32.3"
+lazy_static = "1.4.0"
+axum = {version = "0.6.20", features = ["ws", "json", "tokio", "tracing", "macros", "headers"]}
+tokio = {version =  "1.33.0", features = ["full"]}
+tower-http =  {version =  "0.4.4", features = ["tracing", "trace"]}
+tokio-tungstenite = {version =  "0.20.1", features = ["connect"]}
+tungstenite = "0.20.1"
 
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.
@@ -55,6 +61,8 @@ features = [
     "MouseEvent",
     "HtmlImageElement",
     "WebGlTexture",
+    "HtmlButtonElement",
+    "MouseEvent",
 ]
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
