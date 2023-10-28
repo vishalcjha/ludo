@@ -17,3 +17,12 @@ enum Status {
     Abandoned,
     Completed { players: Vec<Player> },
 }
+
+impl Game {
+    pub fn new(id: u32) -> Game {
+        Game {
+            id,
+            status: Status::Created,
+        }
+    }
+}

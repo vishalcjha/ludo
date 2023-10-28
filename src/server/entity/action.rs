@@ -13,12 +13,18 @@ pub enum Command {
 #[serde(tag = "type")]
 pub enum Response {
     AvailableColols { colors: Vec<Color> },
-    CreateGameResponse { game_id: i32 },
+    CreateGameResponse { game_id: u32 },
 }
 
 impl Response {
     pub fn make_available_colors(colors: Vec<Color>) -> Response {
         Response::AvailableColols { colors }
+    }
+
+    pub fn all_color_response() -> Response {
+        Response::AvailableColols {
+            colors: vec![Color::Yellow, Color::Blue, Color::Red, Color::Green],
+        }
     }
 }
 

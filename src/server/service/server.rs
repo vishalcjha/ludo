@@ -43,11 +43,11 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
         let msg = if let Ok(msg) = msg {
             msg
         } else {
-            println!("Client disconnected while server tried receiving");
+            eprintln!("Client disconnected while server tried receiving");
             return;
         };
 
-        let msg = match handle_command(msg) {
+        let msg = match handle_command(msg, state.clone()) {
             Ok(msg) => msg,
             Err(err) => {
                 eprintln!("Failure is {:?}", err);
@@ -56,21 +56,23 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
         };
 
         if socket.send(msg).await.is_err() {
-            println!("Client disconnected while server tried sending");
+            eprintln!("Client disconnected while server tried sending");
         }
     }
 }
 
-fn handle_command(msg: Message) -> Result<Message> {
+fn handle_command(msg: Message, state: AppState) -> Result<Message> {
     let msg = msg.into_text()?;
-    let _command = serde_json::from_str::<Command>(&msg)?;
-
-    let response = CommandResponse::make_available_colors(vec![
-        Color::Red,
-        Color::Green,
-        Color::Yellow,
-        Color::Blue,
-    ]);
+    let command = serde_json::from_str::<Command>(&msg)?;
+    let response = match command {
+        Command::CreateGame => {
+            let game_id = state.create_game()?;
+            CommandResponse::CreateGameResponse { game_id }
+        }
+        Command::AvailableColors => todo!(),
+        Command::SelectColor(_) => todo!(),
+        Command::StartGame { id } => todo!(),
+    };
 
     let stringified = serde_json::to_string(&response)?;
     Ok(Message::Text(stringified))
@@ -92,33 +94,30 @@ mod test {
     async fn integration_test() {
         let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0));
         let app = axum::Server::bind(&socket_addr).serve(app().into_make_service());
-        let local_addr = app.local_addr();
+        let local_address = app.local_addr();
         tokio::spawn(app);
 
-        println!("Local addr is {}", local_addr);
-        let (mut socket, _) = tokio_tungstenite::connect_async(format!("ws://{local_addr}/game"))
-            .await
-            .unwrap();
+        let (mut socket, _) =
+            tokio_tungstenite::connect_async(format!("ws://{local_address}/game"))
+                .await
+                .unwrap();
 
-        let request = serde_json::to_string(&Command::AvailableColors).unwrap();
-        socket
-            .send(tungstenite::Message::text(request))
-            .await
-            .unwrap();
+        for i in 1..10 {
+            let request = serde_json::to_string(&Command::CreateGame).unwrap();
+            socket
+                .send(tungstenite::Message::text(request))
+                .await
+                .unwrap();
 
-        let msg = match socket.next().await.unwrap().unwrap() {
-            tungstenite::Message::Text(msg) => msg,
-            other => panic!("expected text message but got {:#?}", other),
-        };
+            let msg = match socket.next().await.unwrap().unwrap() {
+                tungstenite::Message::Text(msg) => msg,
+                other => panic!("expected text message but got {:#?}", other),
+            };
 
-        assert_eq!(
-            serde_json::from_str::<CommandResponse>(&msg).unwrap(),
-            CommandResponse::make_available_colors(vec![
-                Color::Red,
-                Color::Green,
-                Color::Yellow,
-                Color::Blue
-            ])
-        );
+            assert_eq!(
+                serde_json::from_str::<CommandResponse>(&msg).unwrap(),
+                CommandResponse::CreateGameResponse { game_id: i }
+            );
+        }
     }
 }
