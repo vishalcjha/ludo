@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "type")]
 pub enum Command {
     CreateGame,
-    AvailableColors,
-    SelectColor(Color),
+    AvailableColors { id: u32 },
+    JoinGame { id: u32, color: Color },
     StartGame { id: u32 },
 }
 
@@ -13,7 +13,10 @@ pub enum Command {
 #[serde(tag = "type")]
 pub enum Response {
     AvailableColols { colors: Vec<Color> },
+    // Select Color can fail, but to limit ping pong of message, if possible we will return alternative color.
+    PickedColor { color: Color },
     CreateGameResponse { game_id: u32 },
+    FailureMessage { message: String },
 }
 
 impl Response {
@@ -26,6 +29,10 @@ impl Response {
             colors: vec![Color::Yellow, Color::Blue, Color::Red, Color::Green],
         }
     }
+
+    pub fn to_json(self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
 }
 
 #[cfg(test)]
@@ -34,10 +41,11 @@ mod test {
 
     #[test]
     fn test_serde() {
-        let command = serde_json::to_string(&Command::AvailableColors).unwrap();
+        let game_id = 42;
+        let command = serde_json::to_string(&Command::AvailableColors { id: game_id }).unwrap();
 
         let original_command = serde_json::from_str::<Command>(&command).unwrap();
 
-        assert_eq!(original_command, Command::AvailableColors);
+        assert_eq!(original_command, Command::AvailableColors { id: game_id });
     }
 }

@@ -7,12 +7,14 @@ use axum::{
     routing::get,
     Router,
 };
+use futures::{
+    stream::{SplitSink, SplitStream},
+    SinkExt, StreamExt,
+};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
-use crate::{
-    server::entity::action::Response as CommandResponse,
-    server::entity::{action::Command, color::Color},
-};
+use crate::{server::entity::action::Command, server::entity::action::Response as CommandResponse};
 
 use super::state::AppState;
 use anyhow::Result;
@@ -39,7 +41,20 @@ async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Respons
 }
 
 async fn handle_socket(mut socket: WebSocket, state: AppState) {
-    while let Some(msg) = socket.recv().await {
+    let (sender, receiver) = socket.split();
+    let (tx, rx) = channel::<Message>(1);
+
+    tokio::spawn(handle_read(receiver, state.clone(), tx));
+
+    tokio::spawn(handle_write(sender, rx));
+}
+
+async fn handle_read(
+    mut receiver: SplitStream<WebSocket>,
+    state: AppState,
+    socket_write_requester: Sender<Message>,
+) {
+    while let Some(msg) = receiver.next().await {
         let msg = if let Ok(msg) = msg {
             msg
         } else {
@@ -51,11 +66,24 @@ async fn handle_socket(mut socket: WebSocket, state: AppState) {
             Ok(msg) => msg,
             Err(err) => {
                 eprintln!("Failure is {:?}", err);
-                Message::Text("Failed to handler request".to_owned())
+                let failure_message = CommandResponse::FailureMessage {
+                    message: "Failed to handler request".to_owned(),
+                }
+                .to_json();
+                Message::Text(failure_message)
             }
         };
 
-        if socket.send(msg).await.is_err() {
+        let _ = socket_write_requester.send(msg).await;
+    }
+}
+
+async fn handle_write(
+    mut sender: SplitSink<WebSocket, Message>,
+    mut socket_write_receiver: Receiver<Message>,
+) {
+    while let Some(msg) = socket_write_receiver.recv().await {
+        if sender.send(msg).await.is_err() {
             eprintln!("Client disconnected while server tried sending");
         }
     }
@@ -69,9 +97,9 @@ fn handle_command(msg: Message, state: AppState) -> Result<Message> {
             let game_id = state.create_game()?;
             CommandResponse::CreateGameResponse { game_id }
         }
-        Command::AvailableColors => todo!(),
-        Command::SelectColor(_) => todo!(),
-        Command::StartGame { id } => todo!(),
+        Command::AvailableColors { .. } => todo!(),
+        Command::JoinGame { .. } => todo!(),
+        Command::StartGame { .. } => todo!(),
     };
 
     let stringified = serde_json::to_string(&response)?;
