@@ -44,6 +44,7 @@ tower-http =  {version =  "0.4.4", features = ["tracing", "trace"]}
 tokio-tungstenite = {version =  "0.20.1", features = ["connect"]}
 tungstenite = "0.20.1"
 
+
 # The `web-sys` crate allows you to interact with the various browser APIs,
 # like the DOM.
 [dependencies.web-sys]
@@ -75,3 +76,4 @@ console_error_panic_hook = "0.1.7"
 # These crates are used for running unit tests.
 [dev-dependencies]
 wasm-bindgen-test = "0.3.37"
+rstest = "0.18.2"
