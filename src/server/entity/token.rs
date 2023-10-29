@@ -102,6 +102,45 @@ impl Token {
         }
         Ok(())
     }
+
+    /// None for Status::Home
+    /// yello color stats with 0, 0. Caller should take negative of z value.
+    pub fn get_x_z(&self) -> Option<(u8, u8)> {
+        match self.status {
+            Status::Home => None,
+            Status::Running { pos } => {
+                let global_pos = pos + self.color.pos_offset();
+                let global_pos = global_pos % 52;
+                match global_pos {
+                    0..=5 => Some((6, global_pos)),
+                    6..=11 => Some((i8::abs(global_pos as i8 - 11) as u8, 6)),
+                    12 => Some((0, 7)),
+                    13..=18 => Some((global_pos - 13, 8)),
+                    19..=24 => Some((6, global_pos - 19 + 9)),
+                    25 => Some((7, 14)),
+                    26..=31 => Some((8, i8::abs(global_pos as i8 - 31) as u8 + 9)),
+                    32..=37 => Some((global_pos - 32 + 9, 8)),
+                    38 => Some((14, 7)),
+                    39..=44 => Some((14 - (global_pos - 39), 6)),
+                    45..=50 => Some((8, i8::abs(global_pos as i8 - 50) as u8)),
+                    51 => Some((7, 0)),
+                    _ => panic!("Invalid position {:?} ", global_pos),
+                }
+            }
+            Status::FinalWalk { pos } => match self.color {
+                Color::Yellow => Some((7, pos)),
+                Color::Blue => Some((pos, 7)),
+                Color::Red => Some((7, 14 - pos)),
+                Color::Green => Some((14 - pos, 7)),
+            },
+            Status::Done => match self.color {
+                Color::Yellow => Some((7, 6)),
+                Color::Blue => Some((6, 7)),
+                Color::Red => Some((7, 8)),
+                Color::Green => Some((8, 7)),
+            },
+        }
+    }
 }
 
 #[cfg(test)]

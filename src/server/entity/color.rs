@@ -15,7 +15,7 @@ pub enum Color {
 impl Color {
     /// As yellow is first quardent its offset is 0.
     /// All other color gets +13 offset for each clockwise distance from yellow.
-    pub fn pos_offset(&self) -> u32 {
+    pub fn pos_offset(&self) -> u8 {
         match &self {
             Color::Yellow => 0,
             Color::Blue => 13,
